@@ -22,7 +22,7 @@ import { useSaveChapterRecord } from '@/utils/db'
 import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import type React from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { useImmerReducer } from 'use-immer'
 
 const App: React.FC = () => {
@@ -40,9 +40,9 @@ const App: React.FC = () => {
   const reviewModeInfo = useAtomValue(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
   const currentWordName = state.chapterData.words[state.chapterData.index]?.name ?? ''
-  const playbackScopeKey = `${currentDictId}:${currentChapter}:${state.chapterData.index}:${currentWordName}`
+  const playbackScopeKey = `${currentDictId}:${currentChapter}:${state.chapterData.index}:${currentWordName}:${state.isTyping}`
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     stopAllPlayback()
     return stopAllPlayback
   }, [playbackScopeKey])

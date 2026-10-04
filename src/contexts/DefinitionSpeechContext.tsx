@@ -5,7 +5,7 @@ import { registerDefinitionCancel, stopWordPlayback } from '@/utils/audioPlaybac
 import { getCantoneseVoices } from '@/utils/cantoneseVoice'
 import { useAtomValue } from 'jotai'
 import type { PropsWithChildren } from 'react'
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 type DefinitionSpeechContextValue = {
   speak: (text: string, speechId: string) => boolean
@@ -125,7 +125,7 @@ export function DefinitionSpeechProvider({ children, scopeKey }: PropsWithChildr
 
   useEffect(() => registerDefinitionCancel(cancel), [cancel])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     cancel()
     setError(null)
   }, [

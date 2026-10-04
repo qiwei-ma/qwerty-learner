@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { resolve } from 'node:path'
 
 type MockVoice = {
   name: string
@@ -217,9 +218,17 @@ test('cancels queued definition speech and keeps list Cantonese clicks separate'
   await page.keyboard.press('Enter')
 
   const mainButton = page.getByRole('button', { name: '用粤语朗读中文释义' })
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { __speechMock: { calls: unknown[] } }).__speechMock.calls.length))
+    .toBe(1)
+  const automaticCallCount = await page.evaluate(
+    () => (window as typeof window & { __speechMock: { calls: unknown[] } }).__speechMock.calls.length,
+  )
   await mainButton.click()
   await mainButton.click()
-  expect(await page.evaluate(() => (window as typeof window & { __speechMock: { calls: unknown[] } }).__speechMock.calls.length)).toBe(2)
+  expect(await page.evaluate(() => (window as typeof window & { __speechMock: { calls: unknown[] } }).__speechMock.calls.length)).toBe(
+    automaticCallCount + 2,
+  )
   expect(
     await page.evaluate(() => (window as typeof window & { __speechMock: { cancelCount: number } }).__speechMock.cancelCount),
   ).toBeGreaterThan(1)
@@ -254,6 +263,76 @@ test('cancels queued definition speech and keeps list Cantonese clicks separate'
   expect(
     await page.evaluate(() => (window as typeof window & { __speechMock: { cancelCount: number } }).__speechMock.cancelCount),
   ).toBeGreaterThan(cancelCountBeforeClose)
+})
+
+test('plays Cantonese automatically after the English audio ends', async ({ page }) => {
+  await page.route('https://dict.youdao.com/dictvoice?**', async (route) => {
+    await route.fulfill({
+      path: resolve(process.cwd(), 'public/sounds/click.wav'),
+      contentType: 'audio/wav',
+      headers: { 'access-control-allow-origin': '*' },
+    })
+  })
+
+  await page.evaluate((voice) => {
+    const config = JSON.parse(localStorage.getItem('pronunciation') ?? '{}')
+    localStorage.setItem(
+      'pronunciation',
+      JSON.stringify({
+        ...config,
+        isOpen: true,
+        isLoop: true,
+        transVoiceURI: voice.voiceURI,
+        transVoiceName: voice.name,
+        transVoiceLang: voice.lang,
+      }),
+    )
+    localStorage.setItem('__mock_cantonese_available', 'true')
+  }, cantoneseVoice)
+
+  await page.reload()
+  await expect(page.getByRole('button', { name: '用粤语朗读中文释义' })).toBeVisible()
+  await page.keyboard.press('Enter')
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          type MockHowl = { _src: string | string[]; _sounds: unknown[] }
+          const howls = (window as typeof window & { Howler: { _howls: MockHowl[] } }).Howler._howls
+          return howls.some((howl) => String(howl._src).includes('dictvoice') && howl._sounds.length > 0)
+        }),
+      { timeout: 10_000 },
+    )
+    .toBe(true)
+
+  expect(await page.evaluate(() => (window as typeof window & { __speechMock: { calls: unknown[] } }).__speechMock.calls.length)).toBe(0)
+  await page.evaluate(() => {
+    type MockHowl = {
+      _src: string | string[]
+      _sounds: Array<{ _id: number; _paused: boolean }>
+      _emit: (event: string, id: number) => void
+    }
+    const howls = (window as typeof window & { Howler: { _howls: MockHowl[] } }).Howler._howls
+    const currentHowl = [...howls].reverse().find((howl) => String(howl._src).includes('dictvoice'))
+    const currentSound = currentHowl?._sounds.find((sound) => !sound._paused) ?? currentHowl?._sounds[0]
+    if (!currentHowl || !currentSound) throw new Error('English pronunciation did not start')
+    currentHowl._emit('end', currentSound._id)
+  })
+
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { __speechMock: { calls: unknown[] } }).__speechMock.calls.length))
+    .toBe(1)
+
+  const automaticCall = await page.evaluate(() => {
+    const calls = (window as typeof window & { __speechMock: { calls: Array<Record<string, unknown>> } }).__speechMock.calls
+    return calls[0]
+  })
+  expect(automaticCall).toMatchObject({ voiceURI: 'mock-cantonese', lang: 'zh-HK', usedCurrentVoice: true })
+  expect(String(automaticCall?.text).length).toBeGreaterThan(0)
+
+  await page.waitForTimeout(500)
+  expect(await page.evaluate(() => (window as typeof window & { __speechMock: { calls: unknown[] } }).__speechMock.calls.length)).toBe(1)
 })
 
 test('keeps existing definition settings while adding the new defaults', async ({ page }) => {

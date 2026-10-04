@@ -175,6 +175,7 @@ export default function WordPanel() {
               {phoneticConfig.isOpen && <Phonetic word={currentWord} />}
               <Translation
                 trans={currentWord.trans.join('；')}
+                speechId={`main:${state.chapterData.index}:${currentWord.name}`}
                 showTrans={shouldShowTranslation}
                 onMouseEnter={() => handleShowTranslation(true)}
                 onMouseLeave={() => handleShowTranslation(false)}

@@ -36,14 +36,16 @@ export const WordPronunciationIcon = React.forwardRef<
     ref,
     () => ({
       play: playSound,
+      stop,
     }),
-    [playSound],
+    [playSound, stop],
   )
 
   return (
     <SoundIcon
       animated={isPlaying}
       onClick={playSound}
+      ariaLabel={`朗读英文单词 ${word.name}`}
       className={`cursor-pointer text-gray-600 ${className}`}
       iconClassName={iconClassName}
     />
@@ -54,4 +56,5 @@ WordPronunciationIcon.displayName = 'WordPronunciationIcon'
 
 export type WordPronunciationIconRef = {
   play: () => void
+  stop: () => void
 }

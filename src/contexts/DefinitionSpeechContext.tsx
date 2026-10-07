@@ -3,6 +3,7 @@ import type { SpeechVoiceLoadStatus } from '@/hooks/useSpeechVoices'
 import { pronunciationConfigAtom } from '@/store'
 import { registerDefinitionCancel, stopWordPlayback } from '@/utils/audioPlaybackCoordinator'
 import { getCantoneseVoices } from '@/utils/cantoneseVoice'
+import stripPartOfSpeech from '@/utils/stripPartOfSpeech'
 import { useAtomValue } from 'jotai'
 import type { PropsWithChildren } from 'react'
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -87,7 +88,8 @@ export function DefinitionSpeechProvider({ children, scopeKey }: PropsWithChildr
       synth.cancel()
       stopWordPlayback()
 
-      const utterance = new SpeechSynthesisUtterance(text)
+      const speechText = pronunciationConfig.transSpeechMode === 'cantonese' ? stripPartOfSpeech(text) : text
+      const utterance = new SpeechSynthesisUtterance(speechText)
       utterance.volume = pronunciationConfig.transVolume
       utterance.rate = pronunciationConfig.transRate
       if (voice) {
